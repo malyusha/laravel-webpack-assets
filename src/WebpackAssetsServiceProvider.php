@@ -3,7 +3,7 @@
 
 namespace Malyusha\WebpackAssets;
 
-
+use Blade;
 use Illuminate\Support\ServiceProvider;
 use Malyusha\WebpackAssets\Exceptions\AssetException;
 
@@ -46,7 +46,7 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function registerAssetBladeDirective()
     {
-        $this->app['blade.compiler']->directive('assets', function ($expression) {
+        Blade::directive('assets', function ($expression) {
             $string = '';
             $stacks = [
                 config('assets.stacks.scripts'), config('assets.stacks.styles'),
