@@ -1,6 +1,6 @@
 {
-    "version": "1.0.0",
-    "name": "malyusha/webpack-assets",
+    "version": "1.0.2",
+    "name": "malyusha/laravel-webpack-assets",
     "description": "Package to use WebpackManifestPlugin in laravel",
     "type": "package",
     "require": {
