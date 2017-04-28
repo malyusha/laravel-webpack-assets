@@ -9,7 +9,6 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^6.1",
-        "illuminate/container": "^5.4",
         "mockery/mockery": "^0.9.9"
     },
     "license": "MIT",

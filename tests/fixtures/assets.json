@@ -1,5 +1,4 @@
 {
-    "main.js": "assets/main.js",
     "main.css": "assets/css/main.css",
-    "background.jpg": "assets/images/background.jpg"
+    "main.js": "assets/main.js"
 }

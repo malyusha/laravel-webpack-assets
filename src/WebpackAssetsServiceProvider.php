@@ -31,10 +31,6 @@ class WebpackAssetsServiceProvider extends ServiceProvider
         $this->app->singleton('webpack.assets', function () {
             $file = public_path(config('assets.file'));
 
-            if(!file_exists($file)) {
-                throw new AssetException("Manifest file {$file} doesn't  exist.");
-            }
-
             return new Asset($file, $this->app['url']);
         });
 

@@ -6,12 +6,11 @@ namespace Malyusha\WebpackAssets;
 
 use Illuminate\Support\Arr;
 use Illuminate\Contracts\Routing\UrlGenerator;
+use Malyusha\WebpackAssets\Exceptions\AssetException;
 
 class Asset
 {
     protected $assets = [];
-
-    protected $chunks = [];
 
     /**
      * @var UrlGenerator
@@ -21,8 +20,13 @@ class Asset
     public function __construct($file, UrlGenerator $url)
     {
         $this->url = $url;
+        $this->file = $file;
+
+        if(!file_exists($file)) {
+            throw new AssetException("File {$file} does not exist.");
+        }
+
         $this->assets = json_decode(file_get_contents($file), true) ?: [];
-        $this->chunks = array_keys($this->assets);
     }
 
     /**
@@ -49,9 +53,9 @@ class Asset
 
         $attributes = $attributes + $defaults;
 
-        $attributes['href'] = $this->url($chunkName, $secure);
+        $attributes['href'] = $url = $this->url($chunkName, $secure);
 
-        return $this->toHtmlString('<link' . $this->attributes($attributes) . '>' . PHP_EOL);
+        return $url ? $this->toHtmlString('<link' . $this->attributes($attributes) . '>' . PHP_EOL) : '';
     }
 
     /**
@@ -64,9 +68,9 @@ class Asset
      */
     public function script($chunkName, array $attributes = [], $secure = null): string
     {
-        $attributes['src'] = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName, $secure);
 
-        return $this->toHtmlString('<script' . $this->attributes($attributes) . '></script>' . PHP_EOL);
+        return $url ? $this->toHtmlString('<script' . $this->attributes($attributes) . '></script>' . PHP_EOL) : '';
     }
 
     /**
@@ -84,9 +88,9 @@ class Asset
 
         $attributes += $defaults;
 
-        $attributes['src'] = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName, $secure);
 
-        return $this->toHtmlString('<img' . $this->attributes($attributes) . '>');
+        return $url ? $this->toHtmlString('<img' . $this->attributes($attributes) . '>') : '';
     }
 
     /**
@@ -98,7 +102,9 @@ class Asset
      */
     public function url($chunkName, $secure = null): string
     {
-        return $this->url->asset($this->path($chunkName), $secure);
+        $path = $this->path($chunkName);
+
+        return $path ? $this->url->asset($this->path($chunkName), $secure) : '';
     }
 
     /**
@@ -107,12 +113,8 @@ class Asset
      * @param $chunkName
      * @return string
      */
-    public function path($chunkName, $fileType = null): string
+    public function path($chunkName): string
     {
-        if ($fileType !== null) {
-            $chunkName .= $this->searchExtension($chunkName);
-        }
-
         return Arr::get($this->assets, $chunkName, '');
     }
 
@@ -170,6 +172,8 @@ class Asset
         if ($value !== null) {
             return $key . '="' . $this->escapeAll($value) . '"';
         }
+
+        return '';
     }
 
     /**

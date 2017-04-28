@@ -13,6 +13,11 @@ class AssetTest extends TestCase
      */
     protected $asset;
 
+    /**
+     * @var \Mockery\MockInterface
+     */
+    protected $urlMock;
+
     public function setUp()
     {
         parent::setUp();
@@ -20,11 +25,11 @@ class AssetTest extends TestCase
         $app = new Container();
         Container::setInstance($app);
 
-        $asset = Mockery::mock(\Illuminate\Contracts\Routing\UrlGenerator::class);
-        $asset->shouldReceive('asset')->andReturn('http://site.com');
+        $this->urlMock = Mockery::mock(\Illuminate\Contracts\Routing\UrlGenerator::class);
+        $this->urlMock->shouldReceive('asset')->andReturn('http://site.com');
 
         $this->file = __DIR__ . '/fixtures/assets.json';
-        $this->asset = new Asset($this->file, $asset);
+        $this->asset = new Asset($this->file, $this->urlMock);
     }
 
     /**
@@ -32,7 +37,7 @@ class AssetTest extends TestCase
      */
     public function test_it_reads_json_with_assets()
     {
-        $content = json_decode(file_get_contents($this->file), true);
+        $content = $this->getJson();
 
         $this->assertSame($content, $this->asset->assets());
     }
@@ -40,9 +45,14 @@ class AssetTest extends TestCase
     /**
      * @covers Asset::searchExtension()
      */
-    public function test_it_automatically_searches_needed_extension()
+    public function test_it_returns_correct_file_relative_path()
     {
-        $file = 'background.jpg';
-        $this->assertEquals($this->asset->path($file), 'assets/images/background.jpg');
+        $file = 'main.js';
+        $this->assertEquals($this->asset->path($file), 'assets/main.js');
+    }
+
+    protected function getJson()
+    {
+        return json_decode(file_get_contents($this->file), true);
     }
 }
