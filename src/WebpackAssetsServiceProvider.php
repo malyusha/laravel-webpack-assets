@@ -17,8 +17,6 @@ class WebpackAssetsServiceProvider extends ServiceProvider
         $this->publishes([__DIR__ . '/../config/assets.php' => config_path('assets.php')]);
 
         $this->app->alias('webpack.assets', Facade::class);
-
-        $this->registerAssetBladeDirective();
     }
 
     /**
