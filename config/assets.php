@@ -11,19 +11,4 @@ return [
     |
     */
     'file' => 'assets/manifest.json',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Blade stacks keys.
-    |--------------------------------------------------------------------------
-    |
-    | This configuration needed only if you are using custom @assets blade
-    | directive, provided by this package. Each item is the blade stack
-    | where you want to push your assets.
-    |
-    */
-    'stacks' => [
-        'scripts' => 'scripts',
-        'styles' => 'styles'
-    ],
 ];
