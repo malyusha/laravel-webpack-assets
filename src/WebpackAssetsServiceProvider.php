@@ -42,24 +42,19 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function registerAssetBladeDirective()
     {
-        Blade::directive('assets', function ($expression) {
+        $this->app['blade.compiler']->directive('assets', function ($expression) {
             $string = '';
             $stacks = [
                 config('assets.stacks.scripts'), config('assets.stacks.styles'),
             ];
             $segments = array_map('trim', explode(',', preg_replace("/[()\\\"']/", '', $expression)));
 
-            $methods = ['script', 'style'];
-            $assets = $this->app['webpack.assets'];
-
             foreach ($stacks as $key => $stack) {
                 if(!array_key_exists($key, $segments) || $segments[$key] === 'null') {
                     continue;
                 }
 
-                $asset = call_user_func([$assets, $methods[$key]], $segments[$key]);
-
-                $string .= '<?php $__env->startPush("' . $stack . '"); ?>' . $asset . '<?php $__env->stopPush(); ?>';
+                $string .= '<?php $__env->startPush($stack); webpack()->$methods[$key]($segments[$key]); $__env->stopPush(); ?>';
             }
 
             return $string;
