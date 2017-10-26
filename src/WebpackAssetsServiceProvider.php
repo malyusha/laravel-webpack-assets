@@ -17,8 +17,6 @@ class WebpackAssetsServiceProvider extends ServiceProvider
         $this->publishes([__DIR__ . '/../config/assets.php' => config_path('assets.php')]);
 
         $this->app->alias('webpack.assets', Facade::class);
-
-        $this->registerAssetBladeDirective();
     }
 
     /**
@@ -35,35 +33,6 @@ class WebpackAssetsServiceProvider extends ServiceProvider
         });
 
         $this->mergeConfigFrom(__DIR__ . '/../config/assets.php', config_path('assets.php'));
-    }
-
-    /**
-     * Registers @asset blade directive, calling push and endpush for given script and style.
-     */
-    public function registerAssetBladeDirective()
-    {
-        Blade::directive('assets', function ($expression) {
-            $string = '';
-            $stacks = [
-                config('assets.stacks.scripts'), config('assets.stacks.styles'),
-            ];
-            $segments = array_map('trim', explode(',', preg_replace("/[()\\\"']/", '', $expression)));
-
-            $methods = ['script', 'style'];
-            $assets = $this->app['webpack.assets'];
-
-            foreach ($stacks as $key => $stack) {
-                if(!array_key_exists($key, $segments) || $segments[$key] === 'null') {
-                    continue;
-                }
-
-                $asset = call_user_func([$assets, $methods[$key]], $segments[$key]);
-
-                $string .= '<?php $__env->startPush("' . $stack . '"); ?>' . $asset . '<?php $__env->stopPush(); ?>';
-            }
-
-            return $string;
-        });
     }
 
     public function provides()

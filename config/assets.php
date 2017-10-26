@@ -11,29 +11,4 @@ return [
     |
     */
     'file' => 'assets/manifest.json',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Public directory name.
-    |--------------------------------------------------------------------------
-    |
-    | Your public directory, where all files of frontend are stored.
-    |
-    */
-    'public_dir' => 'public',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Blade stacks keys.
-    |--------------------------------------------------------------------------
-    |
-    | This configuration needed only if you are using custom @assets blade
-    | directive, provided by this package. Each item is the blade stack
-    | where you want to push your assets.
-    |
-    */
-    'stacks' => [
-        'scripts' => 'scripts',
-        'styles' => 'styles'
-    ],
 ];
