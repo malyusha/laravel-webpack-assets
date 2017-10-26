@@ -1,0 +1,1 @@
+console.log('hi there! i\'m inline script');

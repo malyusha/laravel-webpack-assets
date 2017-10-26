@@ -27,9 +27,14 @@ class AssetTest extends TestCase
 
         $this->urlMock = Mockery::mock(\Illuminate\Contracts\Routing\UrlGenerator::class);
         $this->urlMock->shouldReceive('asset')->andReturn('http://site.com');
+        $appMock = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
+        $appMock->shouldReceive('basePath')->once()->withAnyArgs()->andReturnUsing(function ($path
+        ) {
+            return __DIR__ . '/' . $path;
+        });
 
         $this->file = __DIR__ . '/fixtures/assets.json';
-        $this->asset = new Asset($this->file, $this->urlMock);
+        $this->asset = new Asset($this->file, $appMock, $this->urlMock);
     }
 
     /**
@@ -47,8 +52,48 @@ class AssetTest extends TestCase
      */
     public function test_it_returns_correct_file_relative_path()
     {
-        $file = 'main.js';
-        $this->assertEquals($this->asset->path($file), 'assets/main.js');
+        $this->assertEquals($this->asset->path('main.js'), 'assets/main.js');
+    }
+
+    /**
+     * @covers Asset::path()
+     */
+    public function test_it_returns_raw_file_content()
+    {
+        $this->assertEquals($this->asset->content('main.css'), $this->getFileContent('css/main.css'));
+    }
+
+    /**
+     * @covers Asset::path()
+     */
+    public function test_it_returns_correct_file_absolute_path()
+    {
+        $this->assertEquals($this->asset->path('main.js', true), __DIR__ . '/public/assets/main.js');
+    }
+
+    /**
+     * @covers Asset::rawStyle()
+     */
+    public function test_it_returns_raw_style_node()
+    {
+        $content = $this->getFileContent('css/main.css');
+
+        $this->assertEquals("<style>{$content}</style>", $this->asset->rawStyle('main.css'));
+    }
+
+    /**
+     * @covers Asset::rawScript()
+     */
+    public function test_it_returns_raw_script_node()
+    {
+        $content = $this->getFileContent('main.js');
+
+        $this->assertEquals("<script type=\"text/javascript\">{$content}</script>", $this->asset->rawScript('main.js'));
+    }
+
+    protected function getFileContent($file)
+    {
+        return file_get_contents(__DIR__ . '/public/assets/' . $file);
     }
 
     protected function getJson()

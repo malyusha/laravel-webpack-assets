@@ -1,11 +1,10 @@
 <?php
 
-
 namespace Malyusha\WebpackAssets;
-
 
 use Illuminate\Support\Arr;
 use Illuminate\Contracts\Routing\UrlGenerator;
+use Illuminate\Contracts\Foundation\Application;
 use Malyusha\WebpackAssets\Exceptions\AssetException;
 
 class Asset
@@ -13,16 +12,29 @@ class Asset
     protected $assets = [];
 
     /**
+     * Array of cached files content retrieved via "content" method.
+     *
+     * @var array
+     */
+    protected static $cachedFileContents = [];
+
+    /**
      * @var UrlGenerator
      */
     protected $url;
 
-    public function __construct($file, UrlGenerator $url)
+    /**
+     * @var \Illuminate\Contracts\Foundation\Application
+     */
+    protected $app;
+
+    public function __construct($file, Application $application, UrlGenerator $url)
     {
         $this->url = $url;
         $this->file = $file;
+        $this->app = $application;
 
-        if(!file_exists($file)) {
+        if (!file_exists($file)) {
             throw new AssetException("File {$file} does not exist.");
         }
 
@@ -45,6 +57,7 @@ class Asset
      * @param $chunkName
      * @param array $attributes
      * @param null $secure
+     *
      * @return string
      */
     public function style($chunkName, array $attributes = [], $secure = null): string
@@ -59,11 +72,42 @@ class Asset
     }
 
     /**
+     * Generates inline styles with content of given chunk.
+     *
+     * @param $chunkName
+     * @param array $attributes
+     *
+     * @return string
+     */
+    public function rawStyle($chunkName, array $attributes = []): string
+    {
+        $content = $this->content($chunkName);
+
+        return $content ? '<style' . $this->attributes($attributes) . '>' . $content . '</style>' : '';
+    }
+
+    /**
+     * Generates inline script with content of given chunk.
+     *
+     * @param $chunkName
+     * @param array $attributes
+     *
+     * @return string
+     */
+    public function rawScript($chunkName, array $attributes = []): string
+    {
+        $content = $this->content($chunkName);
+
+        return $content ? '<script type="text/javascript"' . $this->attributes($attributes) . '>' . $content . '</script>' : '';
+    }
+
+    /**
      * Generates script attribute for chunk.
      *
      * @param $chunkName
      * @param array $attributes
      * @param null $secure
+     *
      * @return string
      */
     public function script($chunkName, array $attributes = [], $secure = null): string
@@ -80,6 +124,7 @@ class Asset
      * @param null $alt
      * @param array $attributes
      * @param null $secure
+     *
      * @return string
      */
     public function image($chunkName, $alt = null, array $attributes = [], $secure = null): string
@@ -98,6 +143,7 @@ class Asset
      *
      * @param $chunkName
      * @param null $secure
+     *
      * @return string
      */
     public function url($chunkName, $secure = null): string
@@ -110,12 +156,35 @@ class Asset
     /**
      * Retrieves chunk from assets array.
      *
-     * @param $chunkName
+     * @param string $chunkName Name of chunk
+     * @param bool $absolute Returns absolute path from server to public directory if true.
+     *
      * @return string
      */
-    public function path($chunkName): string
+    public function path($chunkName, $absolute = false): string
     {
-        return Arr::get($this->assets, $chunkName, '');
+        $path = Arr::get($this->assets, $chunkName, '');
+        $relativePath = str_replace(DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, 'public' . DIRECTORY_SEPARATOR . $path);
+
+        return $absolute ? $this->app->basePath($relativePath) : $path;
+    }
+
+    /**
+     * Returns content of chunk.
+     *
+     * @param $chunk
+     *
+     * @return string
+     */
+    public function content($chunk): string
+    {
+        $path = $this->path($chunk, true);
+
+        if (array_key_exists($path, static::$cachedFileContents)) {
+            return static::$cachedFileContents[$path];
+        }
+
+        return (string) (static::$cachedFileContents[$path] = file_get_contents($path));
     }
 
     /**
@@ -180,6 +249,7 @@ class Asset
      * Transform the string to an Html serializable object.
      *
      * @param $html
+     *
      * @return \Illuminate\Support\HtmlString
      */
     public function toHtmlString($html): \Illuminate\Support\HtmlString

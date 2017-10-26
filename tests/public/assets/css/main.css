@@ -1,0 +1,7 @@
+html, body {
+    height: 100%;
+}
+
+a:focus, a:active, a:visited {
+    color: inherit;
+}

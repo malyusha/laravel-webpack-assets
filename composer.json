@@ -1,35 +1,45 @@
 {
-    "name": "malyusha/laravel-webpack-assets",
-    "description": "Package to use WebpackManifestPlugin in laravel",
-    "type": "package",
-    "require": {
-        "php": ">=7.0",
-        "illuminate/support": "^5.4",
-        "illuminate/routing": "^5.4"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^6.1",
-        "mockery/mockery": "^0.9.9"
-    },
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "malyusha",
-            "email": "im@kodix.ru"
-        }
-    ],
-    "minimum-stability": "stable",
-    "autoload": {
-        "psr-4": {
-            "Malyusha\\WebpackAssets\\": "src/"
-        },
-        "files": [
-            "lib.php"
-        ]
-    },
-    "autoload-dev": {
-        "classmap": [
-            "tests/AssetTest.php"
-        ]
+  "name": "malyusha/laravel-webpack-assets",
+  "description": "Package to use WebpackManifestPlugin in laravel",
+  "type": "package",
+  "require": {
+    "php": ">=7.0",
+    "illuminate/support": "^5.4",
+    "illuminate/routing": "^5.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^6.1",
+    "mockery/mockery": "^0.9.9"
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "malyusha",
+      "email": "im@kodix.ru"
     }
+  ],
+  "minimum-stability": "stable",
+  "autoload": {
+    "psr-4": {
+      "Malyusha\\WebpackAssets\\": "src/"
+    },
+    "files": [
+      "lib.php"
+    ]
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tests/AssetTest.php"
+    ]
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Malyusha\\WebpackAssets\\WebpackAssetsServiceProvider"
+      ]
+    },
+    "branch-alias": {
+      "dev-master": "1."
+    }
+  }
 }
