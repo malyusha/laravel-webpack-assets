@@ -80,7 +80,8 @@ Whenever you want to output your asset simply write:
 ### Raw file contents
 
 When you need to add inline file content, such as css or js wrapped with `style` or `script` tags
-you can now use helper functions for that:
+you can now use helper functions for that: `webpack_raw_style` and `webpack_raw_script`, or if
+in object - `webpack()->rawStyle()` and `webpack()->rawScript()`.
 
 ```blade
 {!! webpack_raw_style('css/main.css') !!}
@@ -92,3 +93,4 @@ you can now use helper functions for that:
 // Will output
 <style>...content of main.css file...</style>
 ```
+
