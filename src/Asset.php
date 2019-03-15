@@ -28,17 +28,26 @@ class Asset
      */
     protected $app;
 
-    public function __construct($file, Application $application, UrlGenerator $url)
+    public function __construct(array $config, Application $application, UrlGenerator $url)
     {
+        $this->checkConfiguration($config);
+
         $this->url = $url;
-        $this->file = $file;
+        $this->file = $config['file'];
         $this->app = $application;
 
-        if (!file_exists($file)) {
-            throw new AssetException("File {$file} does not exist.");
+        if (! file_exists($this->file)) {
+            try {
+                throw new AssetException("File {$this->file} does not exist.");
+            } catch (AssetException $exception) {
+                if ((bool) $config['fail_on_load']) {
+                    // If configuration tells us to fail on load, we'll throw exception forward
+                    throw $exception;
+                }
+            }
+        } else {
+            $this->assets = json_decode(file_get_contents($this->file), true) ?: [];
         }
-
-        $this->assets = json_decode(file_get_contents($file), true) ?: [];
     }
 
     /**
@@ -49,6 +58,22 @@ class Asset
     public function assets(): array
     {
         return $this->assets;
+    }
+
+    /**
+     * Checks configuration array for validity.
+     *
+     * @param array $config
+     *
+     * @throws Exceptions\InvalidConfigurationException
+     */
+    private function checkConfiguration(array $config)
+    {
+        foreach ($required = ['fail_on_load', 'file'] as $item) {
+            if (! array_key_exists($item, $config)) {
+                throw new \Malyusha\WebpackAssets\Exceptions\InvalidConfigurationException($required);
+            }
+        }
     }
 
     /**
@@ -68,7 +93,7 @@ class Asset
 
         $attributes['href'] = $url = $this->url($chunkName, $secure);
 
-        return $url ? $this->toHtmlString('<link' . $this->attributes($attributes) . '>' . PHP_EOL) : '';
+        return $url ? $this->toHtmlString('<link'.$this->attributes($attributes).'>'.PHP_EOL) : '';
     }
 
     /**
@@ -83,7 +108,7 @@ class Asset
     {
         $content = $this->content($chunkName);
 
-        return $content ? '<style' . $this->attributes($attributes) . '>' . $content . '</style>' : '';
+        return $content ? '<style'.$this->attributes($attributes).'>'.$content.'</style>' : '';
     }
 
     /**
@@ -98,7 +123,7 @@ class Asset
     {
         $content = $this->content($chunkName);
 
-        return $content ? '<script type="text/javascript"' . $this->attributes($attributes) . '>' . $content . '</script>' : '';
+        return $content ? '<script type="text/javascript"'.$this->attributes($attributes).'>'.$content.'</script>' : '';
     }
 
     /**
@@ -114,7 +139,7 @@ class Asset
     {
         $attributes['src'] = $url = $this->url($chunkName, $secure);
 
-        return $url ? $this->toHtmlString('<script' . $this->attributes($attributes) . '></script>' . PHP_EOL) : '';
+        return $url ? $this->toHtmlString('<script'.$this->attributes($attributes).'></script>'.PHP_EOL) : '';
     }
 
     /**
@@ -135,7 +160,7 @@ class Asset
 
         $attributes['src'] = $url = $this->url($chunkName, $secure);
 
-        return $url ? $this->toHtmlString('<img' . $this->attributes($attributes) . '>') : '';
+        return $url ? $this->toHtmlString('<img'.$this->attributes($attributes).'>') : '';
     }
 
     /**
@@ -164,7 +189,7 @@ class Asset
     public function path($chunkName, $absolute = false): string
     {
         $path = Arr::get($this->assets, $chunkName, '');
-        $relativePath = str_replace(DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, 'public' . DIRECTORY_SEPARATOR . $path);
+        $relativePath = str_replace(DIRECTORY_SEPARATOR.DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, 'public'.DIRECTORY_SEPARATOR.$path);
 
         return $absolute ? $this->app->basePath($relativePath) : $path;
     }
@@ -206,7 +231,7 @@ class Asset
             }
         }
 
-        return count($html) > 0 ? ' ' . implode(' ', $html) : '';
+        return count($html) > 0 ? ' '.implode(' ', $html) : '';
     }
 
     /**
@@ -239,7 +264,7 @@ class Asset
         }
 
         if ($value !== null) {
-            return $key . '="' . $this->escapeAll($value) . '"';
+            return $key.'="'.$this->escapeAll($value).'"';
         }
 
         return '';

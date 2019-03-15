@@ -27,9 +27,11 @@ class WebpackAssetsServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton('webpack.assets', function () {
-            $file = public_path(config('assets.file'));
-
-            return new Asset($file, $this->app, $this->app['url']);
+            $config = $this->app['config']['assets'];
+            $seetings = array_merge($config, [
+                'file' => public_path(config('assets.file')),
+            ]);
+            return new Asset($config, $this->app, $this->app['url']);
         });
 
         $this->mergeConfigFrom(__DIR__ . '/../config/assets.php', config_path('assets.php'));

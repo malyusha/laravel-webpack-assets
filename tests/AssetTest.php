@@ -18,6 +18,11 @@ class AssetTest extends TestCase
      */
     protected $urlMock;
 
+    /**
+     * @var \Mockery\MockInterface
+     */
+    protected $appMock;
+
     public function setUp()
     {
         parent::setUp();
@@ -27,14 +32,16 @@ class AssetTest extends TestCase
 
         $this->urlMock = Mockery::mock(\Illuminate\Contracts\Routing\UrlGenerator::class);
         $this->urlMock->shouldReceive('asset')->andReturn('http://site.com');
-        $appMock = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
-        $appMock->shouldReceive('basePath')->once()->withAnyArgs()->andReturnUsing(function ($path
-        ) {
-            return __DIR__ . '/' . $path;
+        $this->appMock = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
+        $this->appMock->shouldReceive('basePath')->once()->withAnyArgs()->andReturnUsing(function ($path) {
+            return __DIR__.'/'.$path;
         });
 
-        $this->file = __DIR__ . '/fixtures/assets.json';
-        $this->asset = new Asset($this->file, $appMock, $this->urlMock);
+        $this->file = __DIR__.'/fixtures/assets.json';
+        $this->asset = new Asset([
+            'file'         => $this->file,
+            'fail_on_load' => true,
+        ], $this->appMock, $this->urlMock);
     }
 
     /**
@@ -48,7 +55,7 @@ class AssetTest extends TestCase
     }
 
     /**
-     * @covers Asset::searchExtension()
+     * @covers Asset::path()
      */
     public function test_it_returns_correct_file_relative_path()
     {
@@ -68,7 +75,7 @@ class AssetTest extends TestCase
      */
     public function test_it_returns_correct_file_absolute_path()
     {
-        $this->assertEquals($this->asset->path('main.js', true), __DIR__ . '/public/assets/main.js');
+        $this->assertEquals($this->asset->path('main.js', true), __DIR__.'/public/assets/main.js');
     }
 
     /**
@@ -91,9 +98,21 @@ class AssetTest extends TestCase
         $this->assertEquals("<script type=\"text/javascript\">{$content}</script>", $this->asset->rawScript('main.js'));
     }
 
+    public function test_it_throws_exception_if_no_file_exist_and_configuration_tells_it_should()
+    {
+        $this->expectException(\Malyusha\WebpackAssets\Exceptions\AssetException::class);
+        new Asset(['file' => 'will_not_be_found', 'fail_on_load' => true], $this->appMock, $this->urlMock);
+    }
+
+    public function test_it_wont_throw_exception_if_no_file_exist()
+    {
+        new Asset(['file' => 'will_not_be_found', 'fail_on_load' => false], $this->appMock, $this->urlMock);
+        $this->addToAssertionCount(1);
+    }
+
     protected function getFileContent($file)
     {
-        return file_get_contents(__DIR__ . '/public/assets/' . $file);
+        return file_get_contents(__DIR__.'/public/assets/'.$file);
     }
 
     protected function getJson()
