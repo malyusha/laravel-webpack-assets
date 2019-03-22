@@ -1,7 +1,21 @@
 language: php
+
 php:
-  - '7.0'
-  - '7.1'
+  - 7.0
+  - 7.1
+  - 7.2
+  - 7.3
+
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.composer/cache
+
+before_install:
+  - travis_retry composer self-update
 
 install:
-  - travis_retry composer install
+  - travis_retry composer update --prefer-dist --no-interaction --prefer-stable --no-suggest
+
+script: vendor/bin/phpunit
