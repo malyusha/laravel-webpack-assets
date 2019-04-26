@@ -20,7 +20,7 @@ class LaravelPathGenerator implements \Malyusha\WebpackAssets\PathGenerator
      */
     public function url(string $path): string
     {
-        return $this->adapter->url($path);
+        return $this->adapter->path($path);
     }
 
     /**
@@ -33,6 +33,6 @@ class LaravelPathGenerator implements \Malyusha\WebpackAssets\PathGenerator
      */
     public function path(string $path): string
     {
-        return $this->adapter->path($path);
+        return $this->adapter->url($path);
     }
 }

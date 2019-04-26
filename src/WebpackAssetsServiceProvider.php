@@ -2,8 +2,6 @@
 
 namespace Malyusha\WebpackAssets;
 
-use Blade;
-use Illuminate\Contracts\Filesystem\Factory;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;
@@ -23,19 +21,24 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      * Register the service provider.
      *
      * @return void
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
     public function register()
     {
-        $this->app->bind(PathGenerator::class, function () {
-            return new LaravelPathGenerator($this->app->get(FilesystemAdapter::class));
+        $config = $this->app['config']->get('assets');
+        /**@var \Illuminate\Contracts\Filesystem\Factory $factory*/
+        $factory = $this->app->make(\Illuminate\Contracts\Filesystem\Factory::class);
+        $filesystem = $factory->disk($config['disk']);
+
+        $this->app->bind(PathGenerator::class, function () use ($filesystem) {
+            return new LaravelPathGenerator($filesystem);
         });
 
-        $this->app->singleton('webpack.assets', function () {
+        $this->app->singleton('webpack.assets', function () use ($config, $filesystem) {
             $config = $this->app['config']->get('assets');
             $pathGenerator = $this->app->get(PathGenerator::class);
-            $filesystem = $this->app->make(Factory::class)->disk($config['disk']);
 
-            return new Asset(Arr::pull($config, 'disk'), $pathGenerator, $filesystem);
+            return new Asset(Arr::pull($config, 'disk'), $pathGenerator, $filesystem, $filesystem);
         });
 
         $this->mergeConfigFrom(__DIR__.'/../config/assets.php', $this->app->configPath('assets.php'));
