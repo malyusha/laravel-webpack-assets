@@ -14,16 +14,6 @@ class WebpackAssetsServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([__DIR__.'/../config/assets.php' => $this->app->configPath('assets.php')]);
-    }
-
-    /**
-     * Register the service provider.
-     *
-     * @return void
-     */
-    public function register()
-    {
-        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', $this->app->configPath('assets.php'));
 
         $this->app->singleton('webpack.assets', function () {
             $config = (array) $this->app->get('config')->get('assets');
@@ -36,6 +26,16 @@ class WebpackAssetsServiceProvider extends ServiceProvider
 
             return new Asset($config, $generator, $adapter);
         });
+    }
+
+    /**
+     * Register the service provider.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', $this->app->configPath('assets.php'));
     }
 
     public function provides()
