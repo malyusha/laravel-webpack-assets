@@ -2,78 +2,120 @@
 
 namespace Malyusha\WebpackAssets;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
-use Illuminate\Contracts\Routing\UrlGenerator;
-use Illuminate\Contracts\Foundation\Application;
 use Malyusha\WebpackAssets\Exceptions\AssetException;
 
 class Asset
 {
-    protected $assets = [];
+    /**
+     * Array of loaded assets.
+     *
+     * @var array
+     */
+    protected $assets;
 
     /**
      * Array of cached files content retrieved via "content" method.
      *
      * @var array
      */
-    protected static $cachedFileContents = [];
+    protected $cachedFileContents = [];
+
+    /**
+     * @var \Illuminate\Contracts\Filesystem\Filesystem
+     */
+    protected $filesystem;
 
     /**
      * @var UrlGenerator
      */
-    protected $url;
+    protected $urlGenerator;
+
+    /**
+     * Manifest file path.
+     *
+     * @var string
+     */
+    protected $manifestFile;
+
+    /**
+     * Whether to throw exception when given chunk name real path is missing in filesystem.
+     *
+     * @var bool
+     */
+    protected $failOnLoad;
 
     /**
      * @var \Illuminate\Contracts\Foundation\Application
      */
     protected $app;
 
-    public function __construct(array $config, Application $application, UrlGenerator $url)
+    public function __construct(array $config, UrlGenerator $generator, Filesystem $filesystem)
     {
-        $this->checkConfiguration($config);
+        $this->initFromConfig($config);
 
-        $this->url = $url;
-        $this->file = $config['file'];
-        $this->app = $application;
-
-        if (! file_exists($this->file)) {
-            try {
-                throw new AssetException("File {$this->file} does not exist.");
-            } catch (AssetException $exception) {
-                if ((bool) $config['fail_on_load']) {
-                    // If configuration tells us to fail on load, we'll throw exception forward
-                    throw $exception;
-                }
-            }
-        } else {
-            $this->assets = json_decode(file_get_contents($this->file), true) ?: [];
-        }
+        $this->urlGenerator = $generator;
+        $this->filesystem = $filesystem;
     }
 
     /**
      * Returns all loaded assets from file.
      *
      * @return array
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function assets(): array
     {
+        if ($this->assets === null) {
+            $this->fresh();
+        }
+
         return $this->assets;
     }
 
     /**
-     * Checks configuration array for validity.
+     * Reloads array of assets from manifest file.
      *
-     * @param array $config
+     * @return self
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
+     */
+    public function fresh(): self
+    {
+        $contents = '{}';
+        try {
+            $contents = $this->filesystem->get($this->manifestFile);
+        } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
+            if ($this->failOnLoad) {
+                // If we need to fail on load, then throw exception
+                throw new AssetException("Manifest file {$this->manifestFile} does not exist");
+            }
+        }
+
+        // Fresh assets with new contents
+        $this->assets = json_decode($contents, true);
+
+        return $this;
+    }
+
+    /**
+     * Initializes properties from given config.
+     * Checks given config for validity and throw exception if it's invalid.
+     *
+     * @param array $config Configuration data array.
      *
      * @throws Exceptions\InvalidConfigurationException
      */
-    private function checkConfiguration(array $config)
+    private function initFromConfig(array $config)
     {
         foreach ($required = ['fail_on_load', 'file'] as $item) {
             if (! array_key_exists($item, $config)) {
                 throw new \Malyusha\WebpackAssets\Exceptions\InvalidConfigurationException($required);
             }
         }
+
+        $this->manifestFile = $config['file'];
+        $this->failOnLoad = (bool) $config['fail_on_load'];
     }
 
     /**
@@ -81,17 +123,17 @@ class Asset
      *
      * @param $chunkName
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function style($chunkName, array $attributes = [], $secure = null): string
+    public function style($chunkName, array $attributes = []): string
     {
         $defaults = ['media' => 'all', 'type' => 'text/css', 'rel' => 'stylesheet'];
 
-        $attributes = $attributes + $defaults;
+        $attributes = array_merge($defaults, $attributes);
 
-        $attributes['href'] = $url = $this->url($chunkName, $secure);
+        $attributes['href'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<link'.$this->attributes($attributes).'>'.PHP_EOL) : '';
     }
@@ -103,6 +145,7 @@ class Asset
      * @param array $attributes
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function rawStyle($chunkName, array $attributes = []): string
     {
@@ -118,6 +161,7 @@ class Asset
      * @param array $attributes
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function rawScript($chunkName, array $attributes = []): string
     {
@@ -131,13 +175,13 @@ class Asset
      *
      * @param $chunkName
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function script($chunkName, array $attributes = [], $secure = null): string
+    public function script($chunkName, array $attributes = []): string
     {
-        $attributes['src'] = $url = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<script'.$this->attributes($attributes).'></script>'.PHP_EOL) : '';
     }
@@ -148,17 +192,17 @@ class Asset
      * @param $chunkName
      * @param null $alt
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function image($chunkName, $alt = null, array $attributes = [], $secure = null): string
+    public function image($chunkName, $alt = null, array $attributes = []): string
     {
         $defaults = ['alt' => $alt];
 
-        $attributes += $defaults;
+        $attributes = array_merge($defaults, $attributes);
 
-        $attributes['src'] = $url = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<img'.$this->attributes($attributes).'>') : '';
     }
@@ -167,31 +211,43 @@ class Asset
      * Returns full url for chunk.
      *
      * @param $chunkName
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function url($chunkName, $secure = null): string
+    public function url($chunkName): string
     {
-        $path = $this->path($chunkName);
+        $path = $this->chunkPath($chunkName);
 
-        return $path ? $this->url->asset($this->path($chunkName), $secure) : '';
+        return $path !== '' ? $this->urlGenerator->url($path) : '';
+    }
+
+    /**
+     * Returns chunk path as inside manifest.
+     *
+     * @param string $chunkName
+     *
+     * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
+     */
+    public function chunkPath(string $chunkName): string
+    {
+        return (string) Arr::get($this->assets(), $chunkName, '');
     }
 
     /**
      * Retrieves chunk from assets array.
      *
-     * @param string $chunkName Name of chunk
-     * @param bool $absolute Returns absolute path from server to public directory if true.
+     * @param string $chunkName Name of chunk.
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function path($chunkName, $absolute = false): string
+    public function path($chunkName): string
     {
-        $path = Arr::get($this->assets, $chunkName, '');
-        $relativePath = str_replace(DIRECTORY_SEPARATOR.DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, 'public'.DIRECTORY_SEPARATOR.$path);
+        $path = $this->chunkPath($chunkName);
 
-        return $absolute ? $this->app->basePath($relativePath) : $path;
+        return $path !== '' ? $this->urlGenerator->path($path) : '';
     }
 
     /**
@@ -200,16 +256,21 @@ class Asset
      * @param $chunk
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function content($chunk): string
     {
-        $path = $this->path($chunk, true);
+        $path = $this->path($chunk);
 
-        if (array_key_exists($path, static::$cachedFileContents)) {
-            return static::$cachedFileContents[$path];
+        if (array_key_exists($path, $this->cachedFileContents)) {
+            return $this->cachedFileContents[$path];
         }
 
-        return (string) (static::$cachedFileContents[$path] = file_get_contents($path));
+        try {
+            return $this->cachedFileContents[$path] = $this->filesystem->get($path);
+        } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
+            return '';
+        }
     }
 
     /**
