@@ -84,7 +84,7 @@ class Asset
     {
         $contents = [];
         try {
-            $contents = $this->filesystem->get($this->manifestFile);
+            $contents = $this->filesystem->get($this->urlGenerator->path($this->manifestFile));
             $contents = json_decode($contents, true);
         } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
             if ($this->failOnLoad) {

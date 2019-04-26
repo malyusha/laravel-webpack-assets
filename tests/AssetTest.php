@@ -37,6 +37,8 @@ class AssetTest extends TestCase
         $this->fileSystemMock = Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
 
         $this->assetsInstance = $this->getBaseAssetInstance();
+
+        $this->urlGeneratorMock->shouldReceive('path')->with($this->manifestFile)->andReturn($this->manifestFile);
     }
 
     /**
