@@ -82,9 +82,10 @@ class Asset
      */
     public function fresh(): self
     {
-        $contents = '{}';
+        $contents = [];
         try {
             $contents = $this->filesystem->get($this->manifestFile);
+            $contents = json_decode($contents, true);
         } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
             if ($this->failOnLoad) {
                 // If we need to fail on load, then throw exception
@@ -93,7 +94,7 @@ class Asset
         }
 
         // Fresh assets with new contents
-        $this->assets = json_decode($contents, true);
+        $this->assets = $contents;
 
         return $this;
     }
