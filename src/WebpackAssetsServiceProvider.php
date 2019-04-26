@@ -35,7 +35,7 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', $this->app->configPath('assets.php'));
+        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', 'assets');
     }
 
     public function provides()
