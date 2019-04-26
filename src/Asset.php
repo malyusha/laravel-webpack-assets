@@ -2,10 +2,10 @@
 
 namespace Malyusha\WebpackAssets;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
-use Illuminate\Contracts\Routing\UrlGenerator;
-use Illuminate\Contracts\Foundation\Application;
 use Malyusha\WebpackAssets\Exceptions\AssetException;
+use Malyusha\WebpackAssets\Exceptions\InvalidConfigurationException;
 
 class Asset
 {
@@ -19,45 +19,94 @@ class Asset
     protected static $cachedFileContents = [];
 
     /**
-     * @var UrlGenerator
+     * @var \Malyusha\WebpackAssets\PathGenerator
      */
-    protected $url;
+    protected $pathGenerator;
 
     /**
-     * @var \Illuminate\Contracts\Foundation\Application
+     * @var \Illuminate\Contracts\Filesystem\Filesystem
      */
-    protected $app;
+    protected $filesystem;
 
-    public function __construct(array $config, Application $application, UrlGenerator $url)
+    /**
+     * Manifest json file.
+     *
+     * @var string
+     */
+    protected $manifestFile;
+
+    /**
+     * Whether or not to fail with exception when trying to get non-existing file from JSON manifest.
+     *
+     * @var bool
+     */
+    protected $failOnLoad;
+
+    /**
+     * Asset constructor.
+     *
+     * @param array $config
+     * @param \Malyusha\WebpackAssets\PathGenerator $pathGenerator
+     * @param \Illuminate\Contracts\Filesystem\Filesystem $filesystem
+     *
+     * @throws \Malyusha\WebpackAssets\Exceptions\InvalidConfigurationException
+     */
+    public function __construct(array $config, PathGenerator $pathGenerator, Filesystem $filesystem)
     {
-        $this->checkConfiguration($config);
+        $this->setupFromConfig($config);
 
-        $this->url = $url;
-        $this->file = $config['file'];
-        $this->app = $application;
-
-        if (! file_exists($this->file)) {
-            try {
-                throw new AssetException("File {$this->file} does not exist.");
-            } catch (AssetException $exception) {
-                if ((bool) $config['fail_on_load']) {
-                    // If configuration tells us to fail on load, we'll throw exception forward
-                    throw $exception;
-                }
-            }
-        } else {
-            $this->assets = json_decode(file_get_contents($this->file), true) ?: [];
-        }
+        $this->pathGenerator = $pathGenerator;
+        $this->filesystem = $filesystem;
     }
 
     /**
      * Returns all loaded assets from file.
      *
      * @return array
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function assets(): array
     {
+        if ($this->assets === null) {
+            $this->fresh();
+        }
+
         return $this->assets;
+    }
+
+    /**
+     * Refreshes array of assets with new values from manifest.
+     *
+     * @return self
+     *
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
+     */
+    public function fresh(): self
+    {
+        $this->assets = $this->retrieveAssets();
+
+        return $this;
+    }
+
+    /**
+     * Retrieves assets from configuration file.
+     *
+     * @return array
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
+     */
+    protected function retrieveAssets(): array
+    {
+        $contents = '{}';
+
+        try {
+            $contents = $this->filesystem->get($this->manifestFile);
+        } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
+            if ($this->failOnLoad) {
+                throw new AssetException("File {$this->manifestFile} does not exist.");
+            }
+        }
+
+        return json_decode($contents, true) ?: [];
     }
 
     /**
@@ -67,13 +116,16 @@ class Asset
      *
      * @throws Exceptions\InvalidConfigurationException
      */
-    private function checkConfiguration(array $config)
+    private function setupFromConfig(array $config)
     {
         foreach ($required = ['fail_on_load', 'file'] as $item) {
             if (! array_key_exists($item, $config)) {
-                throw new \Malyusha\WebpackAssets\Exceptions\InvalidConfigurationException($required);
+                throw new InvalidConfigurationException($required);
             }
         }
+
+        $this->manifestFile = $config['file'];
+        $this->failOnLoad = (bool) $config['fail_on_load'];
     }
 
     /**
@@ -81,17 +133,16 @@ class Asset
      *
      * @param $chunkName
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
      */
-    public function style($chunkName, array $attributes = [], $secure = null): string
+    public function style($chunkName, array $attributes = []): string
     {
         $defaults = ['media' => 'all', 'type' => 'text/css', 'rel' => 'stylesheet'];
 
-        $attributes = $attributes + $defaults;
+        $attributes = array_merge($defaults, $attributes);
 
-        $attributes['href'] = $url = $this->url($chunkName, $secure);
+        $attributes['href'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<link'.$this->attributes($attributes).'>'.PHP_EOL) : '';
     }
@@ -131,13 +182,12 @@ class Asset
      *
      * @param $chunkName
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
      */
-    public function script($chunkName, array $attributes = [], $secure = null): string
+    public function script($chunkName, array $attributes = []): string
     {
-        $attributes['src'] = $url = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<script'.$this->attributes($attributes).'></script>'.PHP_EOL) : '';
     }
@@ -148,17 +198,17 @@ class Asset
      * @param $chunkName
      * @param null $alt
      * @param array $attributes
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function image($chunkName, $alt = null, array $attributes = [], $secure = null): string
+    public function image($chunkName, $alt = null, array $attributes = []): string
     {
         $defaults = ['alt' => $alt];
 
-        $attributes += $defaults;
+        $attributes = array_merge($defaults, $attributes);
 
-        $attributes['src'] = $url = $this->url($chunkName, $secure);
+        $attributes['src'] = $url = $this->url($chunkName);
 
         return $url ? $this->toHtmlString('<img'.$this->attributes($attributes).'>') : '';
     }
@@ -167,31 +217,35 @@ class Asset
      * Returns full url for chunk.
      *
      * @param $chunkName
-     * @param null $secure
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
-    public function url($chunkName, $secure = null): string
+    public function url($chunkName): string
     {
         $path = $this->path($chunkName);
 
-        return $path ? $this->url->asset($this->path($chunkName), $secure) : '';
+        return $path ? $this->pathGenerator->url($path) : '';
     }
 
     /**
      * Retrieves chunk from assets array.
      *
      * @param string $chunkName Name of chunk
-     * @param bool $absolute Returns absolute path from server to public directory if true.
+     * @param bool $absolute Returns absolute path from server directory if true.
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function path($chunkName, $absolute = false): string
     {
-        $path = Arr::get($this->assets, $chunkName, '');
-        $relativePath = str_replace(DIRECTORY_SEPARATOR.DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, 'public'.DIRECTORY_SEPARATOR.$path);
+        $path = Arr::get($this->assets(), $chunkName, '');
 
-        return $absolute ? $this->app->basePath($relativePath) : $path;
+        if($path === '') {
+            return '';
+        }
+
+        return $absolute ? $this->pathGenerator->path($path) : $path;
     }
 
     /**
@@ -200,6 +254,7 @@ class Asset
      * @param $chunk
      *
      * @return string
+     * @throws \Malyusha\WebpackAssets\Exceptions\AssetException
      */
     public function content($chunk): string
     {

@@ -1,11 +1,13 @@
 <?php
 
-
 namespace Malyusha\WebpackAssets;
 
 use Blade;
+use Illuminate\Contracts\Filesystem\Factory;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;
-use Malyusha\WebpackAssets\Exceptions\AssetException;
+use Malyusha\WebpackAssets\PathGenerators\LaravelPathGenerator;
 
 class WebpackAssetsServiceProvider extends ServiceProvider
 {
@@ -14,9 +16,7 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->publishes([__DIR__ . '/../config/assets.php' => config_path('assets.php')]);
-
-        $this->app->alias('webpack.assets', Facade::class);
+        $this->publishes([__DIR__.'/../config/assets.php' => $this->app->configPath('assets.php')]);
     }
 
     /**
@@ -26,15 +26,19 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton('webpack.assets', function () {
-            $config = $this->app['config']['assets'];
-            $seetings = array_merge($config, [
-                'file' => public_path(config('assets.file')),
-            ]);
-            return new Asset($config, $this->app, $this->app['url']);
+        $this->app->bind(PathGenerator::class, function () {
+            return new LaravelPathGenerator($this->app->get(FilesystemAdapter::class));
         });
 
-        $this->mergeConfigFrom(__DIR__ . '/../config/assets.php', config_path('assets.php'));
+        $this->app->singleton('webpack.assets', function () {
+            $config = $this->app['config']->get('assets');
+            $pathGenerator = $this->app->get(PathGenerator::class);
+            $filesystem = $this->app->make(Factory::class)->disk($config['disk']);
+
+            return new Asset(Arr::pull($config, 'disk'), $pathGenerator, $filesystem);
+        });
+
+        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', $this->app->configPath('assets.php'));
     }
 
     public function provides()
