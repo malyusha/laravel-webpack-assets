@@ -13,10 +13,10 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->publishes([__DIR__.'/../config/assets.php' => $this->app->configPath('assets.php')]);
+        $this->publishes([__DIR__.'/../config/assets_manifest.php' => $this->app->configPath('assets_manifest.php')], 'config');
 
         $this->app->singleton('webpack.assets', function () {
-            $config = (array) $this->app->get('config')->get('assets');
+            $config = (array) $this->app->get('config')->get('assets_manifest');
             /**@var $filesystemFactory \Illuminate\Contracts\Filesystem\Factory */
             $filesystemFactory = $this->app->make(\Illuminate\Contracts\Filesystem\Factory::class);
             // Get the adaptor
@@ -35,7 +35,7 @@ class WebpackAssetsServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/assets.php', 'assets');
+        $this->mergeConfigFrom(__DIR__.'/../config/assets_manifest.php', 'assets_manifest');
     }
 
     public function provides()

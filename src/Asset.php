@@ -237,7 +237,7 @@ class Asset
     }
 
     /**
-     * Retrieves chunk from assets array.
+     * Returns path of chunk from manifest array.
      *
      * @param string $chunkName Name of chunk.
      *
@@ -248,7 +248,7 @@ class Asset
     {
         $path = $this->chunkPath($chunkName);
 
-        return $path !== '' ? $this->urlGenerator->path($path) : '';
+        return $path === '' ? '' : $this->urlGenerator->path($path);
     }
 
     /**
