@@ -84,12 +84,12 @@ class Asset
     {
         $contents = [];
         try {
-            $contents = $this->filesystem->get($this->urlGenerator->path($this->manifestFile));
+            $contents = $this->filesystem->get($this->manifestFile);
             $contents = json_decode($contents, true);
         } catch (\Illuminate\Contracts\Filesystem\FileNotFoundException $exception) {
             if ($this->failOnLoad) {
                 // If we need to fail on load, then throw exception
-                throw new AssetException("Manifest file {$this->manifestFile} does not exist");
+                throw new AssetException("Manifest file {$exception->getMessage()} does not exist");
             }
         }
 
